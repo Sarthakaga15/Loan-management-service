@@ -1,364 +1,320 @@
 # Loan Management Service
 
-Backend service for the Loan Management System built with Spring Boot 3.x and PostgreSQL.
+A Spring Boot REST API for managing loans, repayments, and automated daily interest calculations.
 
-## 🔗 Live Demo
+## 🚀 Live Demo
+
+**Live API**: https://loan-management-services.up.railway.app
 
 **GitHub Repository**: https://github.com/Sarthakaga15/Loan-management-service
 
-**Live API**: `https://your-app.railway.app` (Will be updated after Railway deployment)
+### Quick Test
 
-**Example Endpoints** (Update after deployment):
-- GET `https://your-app.railway.app/api/loans`
-- GET `https://your-app.railway.app/api/loans/1`
-- POST `https://your-app.railway.app/api/loans/1/repayments`
+```bash
+# Health Check
+curl https://loan-management-services.up.railway.app/actuator/health
 
-## 🚀 Deployment
+# Get All Loans
+curl https://loan-management-services.up.railway.app/api/loans
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions on deploying to Railway.app or Render.com.
+# Get Specific Loan
+curl https://loan-management-services.up.railway.app/api/loans/1
+```
 
-## 📋 Prerequisites
+---
 
+## 📋 API Endpoints
+
+### Loans
+- `GET /api/loans` - Get all loans
+- `GET /api/loans/{id}` - Get loan details with repayment and interest history
+- `GET /api/loans/search?customerName={name}` - Search loans by customer name
+
+### Repayments
+- `POST /api/loans/{loanId}/repayments` - Add a repayment
+  ```json
+  {
+    "amount": 5000.00,
+    "paymentDate": "2024-03-15"
+  }
+  ```
+- `GET /api/loans/{loanId}/repayments` - Get repayment history
+
+### Interest
+- `POST /api/interest/calculate?date=2024-03-15` - Manually trigger interest calculation
+- `GET /api/loans/{loanId}/interest-history` - Get interest calculation history
+
+### Health
+- `GET /actuator/health` - Application health status
+
+---
+
+## 🏗️ Application Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Client Applications                      │
+│              (Postman, Frontend, Mobile App)                 │
+└────────────────────────┬────────────────────────────────────┘
+                         │ HTTP/REST
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Spring Boot Application                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ Controllers  │  │   Services   │  │ Repositories │      │
+│  │  (REST API)  │─▶│  (Business)  │─▶│     (JPA)    │      │
+│  └──────────────┘  └──────────────┘  └──────┬───────┘      │
+│                                              │               │
+│  ┌──────────────────────────────────────────┘               │
+│  │          Interest Scheduler                               │
+│  │      (Cron: Daily at 00:00 UTC)                          │
+│  └──────────────────────────────────────────┐               │
+└────────────────────────────────────────────┼───────────────┘
+                                              │ JDBC
+                                              ▼
+                                    ┌──────────────────┐
+                                    │   PostgreSQL     │
+                                    │    Database      │
+                                    └──────────────────┘
+```
+
+### Key Components
+
+1. **Controllers** - Handle HTTP requests and responses
+   - `LoanController` - Loan operations
+   - `RepaymentController` - Repayment processing
+   - `InterestController` - Interest calculations
+
+2. **Services** - Business logic layer
+   - `LoanService` - Loan management
+   - `RepaymentService` - Repayment allocation (interest first, then principal)
+   - `InterestCalculationService` - Daily interest computation
+
+3. **Repositories** - Data access layer (Spring Data JPA)
+   - `LoanRepository`
+   - `RepaymentRepository`
+   - `InterestHistoryRepository`
+
+4. **Scheduler** - Automated tasks
+   - `InterestScheduler` - Runs daily at midnight UTC
+   - Calculates interest for all active loans
+   - Updates `interestOutstanding` and `totalInterestAccrued`
+
+5. **Database** - PostgreSQL
+   - `loan` - Loan records
+   - `repayment` - Payment history
+   - `interest_history` - Daily interest calculations
+
+---
+
+## 💻 Local Development
+
+### Prerequisites
 - Java 17+
-- Maven 3.8+
-- PostgreSQL 14+
+- Maven 3.6+
+- PostgreSQL 12+
 
-## 🛠️ Local Setup
+### Setup
 
-### 1. Database Setup
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Sarthakaga15/Loan-management-service.git
+   cd Loan-management-service
+   ```
 
-1. Install PostgreSQL
-2. Create a database named `loan_db`
-3. Update credentials in `src/main/resources/application.properties`
+2. **Configure database**
+   
+   Edit `src/main/resources/application.properties`:
+   ```properties
+   spring.datasource.url=jdbc:postgresql://localhost:5432/loan_db
+   spring.datasource.username=postgres
+   spring.datasource.password=your_password
+   ```
 
-```sql
-CREATE DATABASE loan_db;
-```
+3. **Create database**
+   ```sql
+   CREATE DATABASE loan_db;
+   ```
 
-### 2. Configuration
+4. **Build and run**
+   ```bash
+   mvn clean install
+   mvn spring-boot:run
+   ```
 
-Update `src/main/resources/application.properties`:
+5. **Load test data** (optional)
+   ```bash
+   psql -U postgres -d loan_db -f src/main/resources/data.sql
+   ```
 
-```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/loan_db
-spring.datasource.username=postgres
-spring.datasource.password=your_password
-```
-
-### 3. Load Test Data
-
-The service includes comprehensive test data with 15 diverse loan scenarios:
-
-```bash
-psql -U postgres -d loan_db -f src/main/resources/data.sql
-```
-
-This will create:
-- **15 loans** (active, closed, high-value, education, business loans)
-- **55 repayment records** (various payment patterns)
-- **120+ interest history entries** (daily calculations)
-
-### 4. Run Application
-
-```bash
-mvn spring-boot:run
-```
-
-The application will start on `http://localhost:8080`.
-
-**Expected Startup Logs**:
-```
-========================================
-Loan Management Service Started Successfully!
-========================================
-✓ Database connection established
-✓ Daily interest calculation scheduler enabled
-✓ Cron schedule: Daily at 00:00 UTC
-✓ Health check endpoint: /actuator/health
-========================================
-Service is ready to accept requests
-========================================
-```
-
-## 📚 API Documentation & Testing Guide
-
-### Quick Start - Test All Features
-
-Follow these steps to test all the assignment requirements:
-
-#### 1. Check Service Health
-
-```bash
-curl http://localhost:8080/actuator/health
-```
-
-**Expected Response**: Database status should be "UP"
+6. **Access the application**
+   - API: http://localhost:8080
+   - Health: http://localhost:8080/actuator/health
 
 ---
 
-#### 2. Get All Loans (List View)
+## 🧪 Testing the API
+
+### Example: Create a Repayment
 
 ```bash
-curl http://localhost:8080/api/loans
-```
-
-**What you'll see**: List of 15 loans with basic information
-- Loan ID, Customer Name
-- Original Amount, Principal Outstanding, Interest Outstanding
-- Annual Interest Rate, Total Interest Accrued
-- Loan Status (ACTIVE/CLOSED)
-- Created/Updated timestamps
-
-**Sample customers**: Rajesh Kumar, Priya Sharma, Amit Patel, Sunita Reddy, etc.
-
----
-
-#### 3. Get Loan Details (Full Information)
-
-```bash
-curl http://localhost:8080/api/loans/1
-```
-
-**What you'll see**: Complete loan information including:
-- All loan fields
-- **Repayment History** (all payments made)
-- **Interest History** (daily interest calculations)
-
-Try different loan IDs (1-15) to see various scenarios:
-- `loan_id=1` - Regular monthly payments
-- `loan_id=4` - High-value loan (₹5M)
-- `loan_id=10` - Nearly paid off
-- `loan_id=12` - Fully closed loan
-
----
-
-#### 4. Search Loans by Customer Name
-
-```bash
-curl "http://localhost:8080/api/loans/search?name=Kumar"
-```
-
-**What you'll see**: All loans matching "Kumar" (e.g., Rajesh Kumar)
-
-Try other names:
-- `name=Sharma`
-- `name=Patel`
-- `name=Reddy`
-
----
-
-#### 5. Get Repayment History for a Loan
-
-```bash
-curl http://localhost:8080/api/loans/1/repayments
-```
-
-**What you'll see**: All repayments for loan #1, showing:
-- Repayment ID, Amount
-- Principal Portion, Interest Portion
-- Running Balance after payment
-- Payment Date
-
----
-
-#### 6. Add a New Repayment
-
-```bash
-curl -X POST http://localhost:8080/api/loans/1/repayments \
+curl -X POST https://loan-management-services.up.railway.app/api/loans/1/repayments \
   -H "Content-Type: application/json" \
   -d '{
     "amount": 10000.00,
-    "paymentDate": "2025-11-27"
+    "paymentDate": "2024-03-15"
   }'
 ```
 
-**What happens**:
-1. Interest is paid first from the amount
-2. Remaining amount goes to principal
-3. Loan outstanding balances are updated
-4. If fully paid, loan status changes to "CLOSED"
-
-**Response**: Details of the repayment created
-
----
-
-#### 7. Get Interest Calculation History
+### Example: Get Loan Details
 
 ```bash
-curl http://localhost:8080/api/loans/1/interest-history
+curl https://loan-management-services.up.railway.app/api/loans/1
 ```
 
-**What you'll see**: Daily interest calculations for the loan
-- Interest Date
-- Interest Amount (calculated daily)
-- Shows how interest accumulates over time
-
----
-
-#### 8. Manually Trigger Interest Calculation
-
-```bash
-curl -X POST http://localhost:8080/api/interest/run
-```
-
-**What happens**:
-- Calculates interest for all ACTIVE loans
-- For yesterday's date (as per requirement)
-- Updates `interest_outstanding` and `total_interest_accrued`
-- Creates entries in `interest_history` table
-
-**Response**: Summary showing:
-- Number of loans processed
-- Total interest calculated
-- Any errors encountered
-
----
-
-### Complete API Reference
-
-#### Loan APIs
-
-| Method | Endpoint | Description | Response |
-|--------|----------|-------------|----------|
-| GET | `/api/loans` | Get all loans | List of loan summaries |
-| GET | `/api/loans/{id}` | Get loan details | Full loan info with repayment & interest history |
-| GET | `/api/loans/search?name={name}` | Search by customer name | Filtered loan list |
-
-#### Repayment APIs
-
-| Method | Endpoint | Description | Request Body |
-|--------|----------|-------------|--------------|
-| POST | `/api/loans/{loanId}/repayments` | Add a repayment | `{"amount": 10000.00, "paymentDate": "2025-11-27"}` |
-| GET | `/api/loans/{loanId}/repayments` | Get repayment history | - |
-
-#### Interest APIs
-
-| Method | Endpoint | Description | Response |
-|--------|----------|-------------|----------|
-| POST | `/api/interest/run` | Manually trigger interest calculation | Calculation summary |
-| GET | `/api/loans/{loanId}/interest-history` | Get interest history | List of daily interest entries |
-
-#### Health Check API
-
-| Method | Endpoint | Description | Response |
-|--------|----------|-------------|----------|
-| GET | `/actuator/health` | Check application & database health | Health status with details |
-
----
-
-## ⏰ Daily Interest Calculation Scheduler
-
-The application includes an **automated daily cron job** that:
-- Runs at **00:00 UTC every day**
-- Calculates interest for all ACTIVE loans
-- Updates loan balances automatically
-- Logs detailed execution metrics
-
-**Cron Expression**: `0 0 0 * * ?`
-
-**Sample Scheduler Logs**:
-```
-========================================
-Starting scheduled daily interest calculation at 2025-11-27 00:00:00
-========================================
-Calculating interest for date: 2025-11-26
-========================================
-Scheduled interest calculation completed successfully!
-Loans processed: 13
-Total interest calculated: ₹45,234.56
-Errors encountered: 0
-Execution time: 1234 ms (1.234 seconds)
-========================================
+**Response:**
+```json
+{
+  "loanId": 1,
+  "customerName": "Rajesh Kumar",
+  "principalAmount": 500000.00,
+  "interestRate": 12.5,
+  "principalOutstanding": 450000.00,
+  "interestOutstanding": 15000.00,
+  "totalInterestAccrued": 25000.00,
+  "status": "ACTIVE",
+  "repayments": [...],
+  "interestHistory": [...]
+}
 ```
 
 ---
 
-## 🎯 Assignment Requirements Verification
+## 📊 Business Logic
 
-### ✅ All Required Features Implemented
+### Interest Calculation
+- **Formula**: `Daily Interest = (Principal Outstanding × Annual Rate) / 365`
+- **Frequency**: Calculated daily at 00:00 UTC
+- **Accrual**: Added to `interestOutstanding` and `totalInterestAccrued`
 
-1. **Loan Management**
-   - ✅ View all loans with outstanding balances
-   - ✅ View detailed loan information
-   - ✅ Search loans by customer name
+### Repayment Allocation
+1. **Interest First**: Payment applied to outstanding interest
+2. **Principal Second**: Remaining amount reduces principal
+3. **Status Update**: Loan marked as `CLOSED` when both are zero
 
-2. **Repayment Processing**
-   - ✅ Add repayments with automatic allocation (interest first, then principal)
-   - ✅ View repayment history
-   - ✅ Automatic loan closure when fully paid
-
-3. **Interest Calculation**
-   - ✅ Daily interest calculation using formula: `(principal × rate / 100) / 365`
-   - ✅ Automated daily cron job at midnight UTC
-   - ✅ Manual trigger option via API
-   - ✅ Interest history tracking
-
-4. **Database & Health**
-   - ✅ PostgreSQL database with proper schema
-   - ✅ Database health check endpoint
-   - ✅ Connection pooling with startup wait (60s)
-   - ✅ Comprehensive test data (15 loans, 55 repayments, 120+ interest records)
-
----
-
-## 🧪 Testing
-
-Run unit tests:
-
-```bash
-mvn test
+### Example
 ```
+Loan: ₹500,000 @ 12.5% annual interest
+Daily Interest: (500,000 × 0.125) / 365 = ₹171.23
 
-Build the project:
-
-```bash
-mvn clean compile
+After 30 days:
+- Interest Accrued: ₹5,136.99
+- Repayment of ₹10,000:
+  - ₹5,136.99 → Interest
+  - ₹4,863.01 → Principal
+- New Principal: ₹495,136.99
 ```
 
 ---
 
-## 🏗️ Tech Stack
+## 🛠️ Tech Stack
 
 - **Framework**: Spring Boot 3.2.3
-- **Database**: PostgreSQL
+- **Language**: Java 17
+- **Database**: PostgreSQL 16
 - **ORM**: Hibernate/JPA
 - **Build Tool**: Maven
-- **Java Version**: 17
+- **Deployment**: Railway.app
 - **Monitoring**: Spring Boot Actuator
 
 ---
 
-## 📁 Project Structure
+## 📝 Database Schema
 
+### Loan Table
+```sql
+CREATE TABLE loan (
+    loan_id BIGSERIAL PRIMARY KEY,
+    customer_name VARCHAR(255) NOT NULL,
+    principal_amount DECIMAL(15,2) NOT NULL,
+    interest_rate DECIMAL(5,2) NOT NULL,
+    principal_outstanding DECIMAL(15,2) NOT NULL,
+    interest_outstanding DECIMAL(15,2) DEFAULT 0,
+    total_interest_accrued DECIMAL(15,2) DEFAULT 0,
+    disbursement_date DATE NOT NULL,
+    status VARCHAR(20) DEFAULT 'ACTIVE'
+);
 ```
-src/main/java/com/delcapital/loanmgmt/
-├── controller/     # REST API endpoints
-├── service/        # Business logic
-├── repository/     # Database access
-├── entity/         # JPA entities
-├── dto/            # Data transfer objects
-├── config/         # Configuration classes
-├── scheduler/      # Scheduled tasks (daily interest calculation)
-└── exception/      # Exception handling
+
+### Repayment Table
+```sql
+CREATE TABLE repayment (
+    repayment_id BIGSERIAL PRIMARY KEY,
+    loan_id BIGINT REFERENCES loan(loan_id),
+    amount DECIMAL(15,2) NOT NULL,
+    payment_date DATE NOT NULL,
+    interest_paid DECIMAL(15,2) DEFAULT 0,
+    principal_paid DECIMAL(15,2) DEFAULT 0
+);
+```
+
+### Interest History Table
+```sql
+CREATE TABLE interest_history (
+    history_id BIGSERIAL PRIMARY KEY,
+    loan_id BIGINT REFERENCES loan(loan_id),
+    interest_date DATE NOT NULL,
+    interest_amount DECIMAL(15,2) NOT NULL,
+    principal_outstanding DECIMAL(15,2) NOT NULL
+);
 ```
 
 ---
 
-## 🔍 Key Features
+## 📅 Scheduler Details
 
-- **Automatic Interest Calculation**: Daily cron job calculates interest for all active loans
-- **Smart Repayment Allocation**: Interest is paid first, then principal
-- **Comprehensive Logging**: Detailed logs for scheduler execution and service startup
-- **Health Monitoring**: Real-time database and application health status
-- **Database Resilience**: Service waits for database to be ready (up to 60 seconds)
-- **Rich Test Data**: 15 diverse loan scenarios for thorough testing
+The application includes an automated scheduler that:
+- **Runs**: Daily at 00:00 UTC
+- **Calculates**: Interest for all `ACTIVE` loans
+- **Updates**: `interestOutstanding` and `totalInterestAccrued`
+- **Records**: Each calculation in `interest_history`
+- **Logs**: Execution metrics (loans processed, total interest, duration)
 
 ---
 
-## 🤝 Contributing
+## 🔍 Monitoring
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+Check application health:
+```bash
+curl https://loan-management-services.up.railway.app/actuator/health
+```
+
+Expected response:
+```json
+{
+  "status": "UP",
+  "components": {
+    "db": {
+      "status": "UP",
+      "details": {
+        "database": "PostgreSQL",
+        "validationQuery": "SELECT 1"
+      }
+    }
+  }
+}
+```
+
+---
+
+## 📄 License
+
+This project is developed as part of a backend assessment.
+
+---
+
+## 👤 Author
+
+**Sarthak Agarwal**
+- GitHub: [@Sarthakaga15](https://github.com/Sarthakaga15)
+- Repository: [Loan-management-service](https://github.com/Sarthakaga15/Loan-management-service)
