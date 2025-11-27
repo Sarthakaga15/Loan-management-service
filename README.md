@@ -4,11 +4,11 @@ Backend service for the Loan Management System built with Spring Boot 3.x and Po
 
 ## 🔗 Live Demo
 
-> **Note**: After deployment, update this section with your live URL
+**GitHub Repository**: https://github.com/Sarthakaga15/Loan-management-service
 
-**Backend API**: `https://your-app.railway.app` (Update after deployment)
+**Live API**: `https://your-app.railway.app` (Will be updated after Railway deployment)
 
-**Example Endpoints**:
+**Example Endpoints** (Update after deployment):
 - GET `https://your-app.railway.app/api/loans`
 - GET `https://your-app.railway.app/api/loans/1`
 - POST `https://your-app.railway.app/api/loans/1/repayments`
